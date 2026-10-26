@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rekapitulasi - Silat Score Pro</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+    <!-- Export & Import Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        :root {
+            /* Tema Terang (Light Theme) */
+            --bg-main: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-table-header: #f1f5f9;
+            --bg-row-hover: #f8fafc;
+            
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            
+            --accent-blue: #3b82f6;
+            --danger: #ef4444;
+            --success: #10b981;
+            --dark: #334155;
+            
+            --gold: #f59e0b;
+            --silver: #94a3b8;
+            --bronze: #b45309;
+            
+            --border-color: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* --- TOP HEADER --- */
+        .top-navbar {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .brand-logo-img {
+            width: 45px;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .brand-text h1 {
+            font-size: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .brand-text p {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        /* --- TOOLBAR BUTTONS --- */
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            border: none;
+            padding: 8px 15px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: white;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.85;
+        }
+
+        .btn-pdf { background-color: var(--danger); }
+        .btn-excel { background-color: var(--success); }
+        .btn-delete-all { background-color: var(--dark); }
+
+        /* --- FILTER SECTION --- */
+        .filter-section {
+            background-color: var(--bg-card);
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: var(--bg-main);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 12px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-group i {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .filter-group input, .filter-group select {
+            border: none;
+            background: transparent;
+            outline: none;
+            width: 100%;
+            font-size: 13px;
+            color: var(--text-main);
+        }
+
+        /* --- MAIN CONTENT --- */
+        .container {
+            padding: 20px;
+            flex-grow: 1;
+        }
+
+        .category-card {
+            background-color: var(--bg-card);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .card-header {
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--bg-table-header);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .cat-title {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-main);
+        }
+
+        /* --- TABLE STYLING --- */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 900px;
+            text-align: left;
+        }
+
+        .data-table th {
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 12px 20px;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .data-table td {
+            padding: 12px 20px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+
+        .data-table tr:hover {
+            background-color: var(--bg-row-hover);
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .col-center { text-align: center; }
+
+        /* Medals & Rankings */
+        .rank-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+        }
+        .medal-icon { font-size: 20px; }
+        .medal-1 { color: var(--gold); }
+        .medal-2 { color: var(--silver); }
+        .medal-3 { color: var(--bronze); }
+        .rank-number { font-weight: 600; color: var(--text-muted); }
+
+        .participant-name { font-weight: 600; color: var(--text-main); }
+        .contingent-name { color: var(--text-muted); font-size: 12px; }
+
+        .text-danger { color: var(--danger) !important; font-weight: 600; }
+        .text-success { color: var(--success) !important; font-weight: 600; }
+
+        /* Individual Delete Button */
+        .btn-delete-row {
+            background-color: var(--danger);
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+        }
+        .btn-delete-row:hover {
+            background-color: #dc2626; /* Darker red */
+            transform: scale(1.05);
+        }
+
+        .empty-state {
+            padding: 40px;
+            text-align: center;
+            color: var(--text-muted);
+            font-style: italic;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .top-navbar { flex-direction: column; align-items: flex-start; gap: 15px; }
+            .toolbar { width: 100%; justify-content: space-between; }
+            .btn { flex: 1; justify-content: center; text-align: center; }
+            .filter-section { flex-direction: column; }
+            .filter-group { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header class="top-navbar">
+        <div class="brand">
+            <!-- Gambar Logo Baru -->
+            <img src="https://iili.io/CSXIjGs.png" alt="Logo" class="brand-logo-img">
+            <div class="brand-text">
+                <h1>Rekapitulasi Pertandingan</h1>
+                <p>Silat Score Pro - Seni (Artistic)</p>
+            </div>
+        </div>
+        
+        <!-- TOOLBAR (Buttons dengan warna) -->
+        <div class="toolbar">
+            <button class="btn btn-pdf" onclick="exportToPDF()"><i class="far fa-file-pdf"></i> PDF</button>
+            <button class="btn btn-excel" onclick="exportToExcel()"><i class="far fa-file-excel"></i> EXCEL</button>
+            <button class="btn btn-delete-all" onclick="deleteAllRekap()"><i class="fas fa-trash"></i> HAPUS SEMUA</button>
+        </div>
+    </header>
+
+    <!-- FILTER SECTION -->
+    <div class="filter-section">
+        <!-- Pencarian -->
+        <div class="filter-group">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Cari nama atau kontingen..." oninput="applyFilters()">
+        </div>
+        <!-- Dropdown Kategori -->
+        <div class="filter-group">
+            <i class="fas fa-list"></i>
+            <select id="filterKategori" onchange="applyFilters()">
+                <option value="">Semua Kategori</option>
+            </select>
+        </div>
+        <!-- Dropdown Usia -->
+        <div class="filter-group">
+            <i class="fas fa-calendar-alt"></i>
+            <select id="filterUsia" onchange="applyFilters()">
+                <option value="">Semua Usia</option>
+            </select>
+        </div>
+        <!-- Dropdown Gender -->
+        <div class="filter-group">
+            <i class="fas fa-venus-mars"></i>
+            <select id="filterGender" onchange="applyFilters()">
+                <option value="">Semua Gender</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- MAIN CONTAINER -->
+    <main class="container" id="rekap-container">
+        <div class="empty-state">Loading data...</div>
+    </main>
+
+    <script>
+        // FIREBASE INITIALIZATION
+        const firebaseConfig = {
+            apiKey: "AIzaSyAaQLzv_-ILHZpin2z558OrecHtlW8P88c",
+            authDomain: "tgripsiambon.firebaseapp.com",
+            databaseURL: "https://tgripsiambon-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "tgripsiambon",
+            storageBucket: "tgripsiambon.firebasestorage.app",
+            messagingSenderId: "835345452490",
+            appId: "1:835345452490:web:7ea41998ee906fdde39333"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let globalRekapData = [];
+        let filteredData = [];
+
+        // SYNC FROM FIREBASE
+        db.ref('rekap').on('value', (snapshot) => {
+            const data = snapshot.val();
+            globalRekapData = data ? Object.keys(data).map(key => ({id: key, ...data[key]})) : [];
+            updateFilterOptions();
+            applyFilters();
+        });
+
+        // POPULATE DROPDOWN FILTERS
+        function updateFilterOptions() {
+            const categories = new Set();
+            const ages = new Set();
+            const genders = new Set();
+
+            globalRekapData.forEach(item => {
+                if (item.kategori) categories.add(item.kategori);
+                if (item.usia) ages.add(item.usia);
+                if (item.gender) genders.add(item.gender);
+            });
+
+            populateSelect('filterKategori', categories, 'Semua Kategori');
+            populateSelect('filterUsia', ages, 'Semua Usia');
+            populateSelect('filterGender', genders, 'Semua Gender');
+        }
+
+        function populateSelect(elementId, dataSet, defaultText) {
+            const select = document.getElementById(elementId);
+            const currentValue = select.value;
+            select.innerHTML = `<option value="">${defaultText}</option>`;
+            
+            Array.from(dataSet).sort().forEach(value => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                if (value === currentValue) option.selected = true;
+                select.appendChild(option);
+            });
+        }
+
+        // FILTER LOGIC
+        function applyFilters() {
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
+            const catFilter = document.getElementById('filterKategori').value;
+            const ageFilter = document.getElementById('filterUsia').value;
+            const genderFilter = document.getElementById('filterGender').value;
+
+            filteredData = globalRekapData.filter(item => {
+                const name = (item.name || '').toLowerCase();
+                const cont = (item.cont || '').toLowerCase();
+                const matchSearch = name.includes(searchText) || cont.includes(searchText);
+                
+                const matchCat = catFilter === '' || item.kategori === catFilter;
+                const matchAge = ageFilter === '' || item.usia === ageFilter;
+                const matchGen = genderFilter === '' || item.gender === genderFilter;
+
+                return matchSearch && matchCat && matchAge && matchGen;
+            });
+
+            renderRekap();
+        }
+
+        // FUNCTION TO RENDER DATA
+        function renderRekap() {
+            const container = document.getElementById('rekap-container');
+            
+            if(filteredData.length === 0) { 
+                container.innerHTML = `<div class="empty-state">Tidak ada data rekapitulasi yang ditemukan.</div>`; 
+                return; 
+            }
+            
+            container.innerHTML = '';
+            
+            // Group Data
+            const groups = {};
+            filteredData.forEach(item => {
+                const groupKey = (item.kategori || 'KATEGORI UMUM').toUpperCase();
+                if(!groups[groupKey]) groups[groupKey] = [];
+                groups[groupKey].push(item);
+            });
+            
+            for(const groupName in groups) {
+                // Sorting logic
+                groups[groupName].sort((a, b) => {
+                    const scoreA = typeof a.final === 'number' ? a.final : -999;
+                    const scoreB = typeof b.final === 'number' ? b.final : -999;
+                    
+                    if(scoreA !== scoreB) return scoreB - scoreA;
+                    
+                    const stdevA = a.stdev || 0;
+                    const stdevB = b.stdev || 0;
+                    if(stdevA !== stdevB) return stdevA - stdevB; 
+                    
+                    const timeA = a.timerMs || 9999999;
+                    const timeB = b.timerMs || 9999999;
+                    return timeA - timeB; 
+                });
+
+                let tableRows = '';
+                
+                groups[groupName].forEach((item, index) => {
+                    const finalDisp = typeof item.final === 'number' ? item.final.toFixed(3) : item.final;
+                    const waktuDisp = item.waktu || '00:00';
+                    const medianDisp = item.median ? item.median.toFixed(2) : '0.00';
+                    const stdevDisp = item.stdev ? item.stdev.toFixed(3) : '0.000';
+                    
+                    const penBoard = item.hukuman_dewan || 0; 
+                    const penJudge = item.hukuman_juri || 0;
+                    
+                    const penBoardClass = penBoard < 0 ? 'text-danger' : (penBoard === 0 ? '' : 'text-success');
+                    const penJudgeClass = penJudge < 0 ? 'text-danger' : (penJudge === 0 ? '' : 'text-success');
+
+                    // Rank Layout
+                    let rankHtml = `<span class="rank-number">${index + 1}</span>`;
+                    if (index === 0) rankHtml = `<i class="fas fa-medal medal-icon medal-1"></i>`;
+                    else if (index === 1) rankHtml = `<i class="fas fa-medal medal-icon medal-2"></i>`;
+                    else if (index === 2) rankHtml = `<i class="fas fa-medal medal-icon medal-3"></i>`;
+
+                    tableRows += `
+                        <tr>
+                            <td class="col-center"><div class="rank-wrap">${rankHtml}</div></td>
+                            <td>
+                                <div class="participant-name">${item.name}</div> 
+                                <div class="contingent-name">${item.cont}</div>
+                            </td>
+                            <td class="col-center">${waktuDisp}</td>
+                            <td class="col-center ${penBoardClass}">${penBoard === 0 ? '-' : penBoard}</td>
+                            <td class="col-center ${penJudgeClass}">${penJudge === 0 ? '-' : penJudge}</td>
+                            <td class="col-center">${medianDisp}</td>
+                            <td class="col-center">${stdevDisp}</td>
+                            <td class="col-center" style="font-weight: 700; font-size: 14px; color: var(--accent-blue);">${finalDisp}</td>
+                            <td class="col-center">
+                                <!-- Tombol Hapus Baris (Berwarna Merah) -->
+                                <button class="btn-delete-row" onclick="deleteRekapItem('${item.id}')" title="Hapus Peserta">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                const cardHtml = `
+                    <div class="category-card">
+                        <div class="card-header">
+                            <h2 class="cat-title">${groupName}</h2>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-center" style="width: 60px;">Rank</th>
+                                        <th>Peserta & Tim</th>
+                                        <th class="col-center">Waktu</th>
+                                        <th class="col-center">Huk. Dewan</th>
+                                        <th class="col-center">Huk. Juri</th>
+                                        <th class="col-center">Median</th>
+                                        <th class="col-center">Std. Dev</th>
+                                        <th class="col-center">Skor Total</th>
+                                        <th style="width: 50px;">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${tableRows}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                
+                container.innerHTML += cardHtml;
+            }
+        }
+
+        // DATABASE ACTIONS
+        function deleteRekapItem(id) { 
+            if(confirm('Hapus data peserta ini dari rekapitulasi?')) {
+                db.ref('rekap/' + id).remove(); 
+            }
+        }
+        
+        function deleteAllRekap() { 
+            if(confirm('PERINGATAN!\n\nApakah Anda yakin ingin menghapus SELURUH data rekapitulasi? Data yang dihapus tidak dapat dikembalikan.')) {
+                db.ref('rekap').remove(); 
+            }
+        }
+        
+        // EXPORT EXCEL (Berdasarkan data yang terfilter)
+        function exportToExcel() { 
+            if(filteredData.length === 0) return alert('Tidak ada data untuk diexport'); 
+            const wsData = [["RANK", "NAMA PESERTA", "KONTINGEN", "KATEGORI", "WAKTU", "HUKUMAN DEWAN", "HUKUMAN JURI", "MEDIAN", "ST. DEV", "SKOR TOTAL"]]; 
+            
+            const groups = {};
+            filteredData.forEach(item => {
+                const groupKey = (item.kategori || 'KATEGORI UMUM').toUpperCase();
+                if(!groups[groupKey]) groups[groupKey] = [];
+                groups[groupKey].push(item);
+            });
+            
+            for(const groupName in groups) {
+                groups[groupName].sort((a, b) => {
+                    const scoreA = typeof a.final === 'number' ? a.final : -999;
+                    const scoreB = typeof b.final === 'number' ? b.final : -999;
+                    if(scoreA !== scoreB) return scoreB - scoreA;
+                    const stdevA = a.stdev || 0;
+                    const stdevB = b.stdev || 0;
+                    if(stdevA !== stdevB) return stdevA - stdevB;
+                    return (a.timerMs || 9999999) - (b.timerMs || 9999999);
+                });
+                
+                wsData.push([`KATEGORI: ${groupName}`, "", "", "", "", "", "", "", "", ""]);
+
+                groups[groupName].forEach((item, index) => { 
+                    const f = typeof item.final === 'number' ? item.final.toFixed(3) : item.final; 
+                    const waktuDisp = item.waktu || '00:00.00';
+                    wsData.push([index + 1, item.name, item.cont, item.kategori, waktuDisp, item.hukuman_dewan||0, item.hukuman_juri||0, item.median ? item.median.toFixed(2) : '0.00', item.stdev ? item.stdev.toFixed(3) : '0.000', f]); 
+                });
+            }
+
+            const wb = XLSX.utils.book_new(); 
+            const ws = XLSX.utils.aoa_to_sheet(wsData); 
+            XLSX.utils.book_append_sheet(wb, ws, "Rekap"); 
+            XLSX.writeFile(wb, "Rekap_Scoring_TGR.xlsx"); 
+        }
+
+        // EXPORT PDF (Berdasarkan data yang terfilter)
+        function exportToPDF() { 
+            if(filteredData.length === 0) return alert('Tidak ada data untuk diexport'); 
+            const { jsPDF } = window.jspdf; 
+            const doc = new jsPDF(); 
+            
+            doc.setTextColor(30, 41, 59);
+            doc.text("REKAPITULASI PERTANDINGAN PENCAK SILAT", 14, 15); 
+            
+            const tableBody = [];
+            const groups = {};
+            filteredData.forEach(item => {
+                const groupKey = (item.kategori || 'KATEGORI UMUM').toUpperCase();
+                if(!groups[groupKey]) groups[groupKey] = [];
+                groups[groupKey].push(item);
+            });
+            
+            for(const groupName in groups) {
+                groups[groupName].sort((a, b) => {
+                    const scoreA = typeof a.final === 'number' ? a.final : -999;
+                    const scoreB = typeof b.final === 'number' ? b.final : -999;
+                    if(scoreA !== scoreB) return scoreB - scoreA;
+                    const stdevA = a.stdev || 0;
+                    const stdevB = b.stdev || 0;
+                    if(stdevA !== stdevB) return stdevA - stdevB;
+                    return (a.timerMs || 9999999) - (b.timerMs || 9999999);
+                });
+                
+                tableBody.push([{ content: groupName, colSpan: 6, styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold' } }]);
+                
+                groups[groupName].forEach((item, index) => { 
+                    const f = typeof item.final === 'number' ? item.final.toFixed(3) : item.final; 
+                    const waktuDisp = item.waktu || '00:00';
+                    tableBody.push([index + 1, `${item.name}\n(${item.cont})`, waktuDisp, item.median ? item.median.toFixed(2) : '0.00', item.stdev ? item.stdev.toFixed(3) : '0.000', f]); 
+                });
+            }
+
+            doc.autoTable({ 
+                startY: 25, 
+                head: [["RANK", "PESERTA & TIM", "WAKTU", "MEDIAN", "ST. DEV", "TOTAL SKOR"]], 
+                body: tableBody, 
+                theme: 'grid',
+                headStyles: { fillColor: [226, 232, 240], textColor: [30, 41, 59] } 
+            }); 
+            doc.save("Rekapitulasi_TGR.pdf"); 
+        }
+
+    </script>
+</body>
+</html>
